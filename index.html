@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f7fb" />
+  <title>药品清单</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --text: #172033;
+      --muted: #788398;
+      --line: #e9edf4;
+      --primary: #315fe8;
+      --primary-soft: #edf2ff;
+      --green: #16856c;
+      --green-soft: #eaf7f2;
+      --orange: #bd6a20;
+      --orange-soft: #fff4e8;
+      --shadow: 0 7px 24px rgba(31, 50, 86, .055);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    /* 基础样式面向手机（mobile-first），宽屏只在下方 min-width 查询里增强 */
+    .app { width: min(100%, 760px); margin: 0 auto; padding: 10px clamp(11px, 3.2vw, 20px) calc(18px + env(safe-area-inset-bottom)); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .brand-icon {
+      width: 32px; height: 32px; border-radius: 11px; flex: 0 0 auto;
+      display: grid; place-items: center; color: #fff; font-size: 16px;
+      background: linear-gradient(145deg, #4779f5, #3154d5);
+      box-shadow: 0 6px 13px rgba(49, 95, 232, .2);
+    }
+    h1 { margin: 0; font-size: 17px; letter-spacing: .2px; line-height: 1.25; }
+    .subtitle { margin-top: 2px; font-size: 10.5px; color: var(--muted); }
+    .top-actions { display: flex; gap: 6px; }
+    .ghost-btn {
+      min-height: 30px; padding: 0 9px; border: 1px solid #e2e8f2; border-radius: 9px;
+      color: #42516b; background: #fff; font-size: 11.5px; white-space: nowrap;
+    }
+    .ghost-btn:active, .primary-btn:active { transform: scale(.98); }
+    .summary {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 9px;
+    }
+    .stat { background: var(--surface); border: 1px solid rgba(230,235,244,.9); border-radius: 12px; padding: 7px 10px; box-shadow: var(--shadow); min-width: 0; }
+    .stat-label { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+    .stat-value { margin-top: 2px; font-size: 17px; line-height: 1.1; font-weight: 750; letter-spacing: -.5px; }
+    .stat-value small { font-size: 10.5px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+    .search-panel { position: sticky; top: 0; z-index: 5; padding: 2px 0 4px; background: linear-gradient(var(--bg) 80%, rgba(244,247,251,0)); }
+    .search-wrap { position: relative; }
+    .search-icon { position: absolute; top: 50%; left: 13px; transform: translateY(-50%); color: #8b96a9; font-size: 16px; pointer-events: none; }
+    #searchInput {
+      width: 100%; height: 40px; padding: 0 36px 0 36px; border: 1px solid #e4eaf3; border-radius: 12px;
+      outline: none; background: #fff; color: var(--text); font-size: 14px; box-shadow: var(--shadow);
+    }
+    #searchInput:focus { border-color: #9bb3ff; box-shadow: 0 0 0 3px rgba(49,95,232,.09); }
+    #clearSearch { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border: 0; border-radius: 50%; background: #f1f3f7; color: #778196; display: none; }
+    .toolbar { display: flex; align-items: center; gap: 7px; margin: 6px 1px 5px; }
+    .result-count { color: var(--muted); font-size: 11.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .result-count strong { color: var(--text); font-size: 12.5px; }
+    #sortSelect { flex: 0 0 auto; max-width: 122px; border: 1px solid #e4eaf3; border-radius: 9px; padding: 5px 23px 5px 8px; color: #526078; background: #fff; font-size: 11.5px; outline: none; }
+    .chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 7px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { border: 1px solid #e4eaf3; background: #fff; color: #66738a; border-radius: 999px; padding: 6px 11px; font-size: 11.5px; white-space: nowrap; flex: 0 0 auto; }
+    .chip.active { color: var(--primary); border-color: #c9d6ff; background: var(--primary-soft); font-weight: 650; }
+    .list { background: var(--surface); border: 1px solid #e9edf4; border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+    .medicine-card + .medicine-card { border-top: 1px solid var(--line); }
+    .medicine-card.open { background: #fbfcfe; }
+    .row {
+      display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px;
+      padding: 8px clamp(11px, 3.2vw, 16px); border: 0; background: transparent; color: inherit; text-align: left;
+    }
+    .row:active { background: #f2f6fd; }
+    .drug-title { flex: 1; min-width: 0; font-size: clamp(13px, 3.5vw, 14.5px); line-height: 1.3; font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .price { flex: 0 0 auto; color: #e05c43; font-size: 14.5px; font-weight: 720; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
+    .price span { font-size: 10.5px; font-weight: 500; color: #a1a9b8; margin-right: 1px; }
+    .chevron { flex: 0 0 auto; width: 11px; color: #b3bdcc; font-size: 14px; line-height: 1; text-align: center; transition: transform .2s ease; }
+    .medicine-card.open .chevron { transform: rotate(90deg); color: var(--primary); }
+    .expand { display: none; padding: 0 clamp(11px, 3.2vw, 16px) 11px; }
+    .medicine-card.open .expand { display: block; }
+    .expand-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; padding-top: 10px; border-top: 1px dashed #e3e9f2; }
+    .detail { min-width: 0; }
+    .detail-label { color: #9aa3b2; font-size: 10px; margin-bottom: 2px; }
+    .detail-value { color: #4e5a6e; font-size: 11.5px; line-height: 1.4; overflow-wrap: anywhere; }
+    .detail-value.strong { color: #344158; font-weight: 650; }
+    .detail-value.stock { color: var(--green); font-weight: 700; }
+    .detail-value.low { color: var(--orange); font-weight: 700; }
+    .detail-value.warn { color: var(--orange); }
+    .detail-value.danger { color: #d0453e; }
+    .detail.full { grid-column: 1 / -1; }
+    .empty { display: none; margin-top: 9px; padding: 30px 16px; text-align: center; color: #8792a5; background: #fff; border: 1px dashed #dce3ee; border-radius: 15px; }
+    .empty-icon { font-size: 24px; margin-bottom: 6px; }
+    .footnote { margin: 10px 4px 0; text-align: center; color: #a0a9b8; font-size: 10px; line-height: 1.5; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: none; align-items: flex-end; justify-content: center; padding: 14px; background: rgba(20,29,48,.42); }
+    .modal-backdrop.show { display: flex; }
+    .modal { width: min(100%, 620px); max-height: 88dvh; overflow: auto; background: #fff; border-radius: 20px; padding: 19px; box-shadow: 0 20px 60px rgba(16,29,56,.2); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .modal-title { font-size: 17px; font-weight: 750; }
+    .close-btn { width: 31px; height: 31px; border: 0; border-radius: 50%; background: #f1f3f7; color: #69758a; font-size: 18px; }
+    .modal-desc { margin: 0 0 12px; color: #7f8a9e; font-size: 12px; line-height: 1.6; }
+    #jsonInput { width: 100%; min-height: 190px; resize: vertical; padding: 12px; border: 1px solid #e1e7f0; border-radius: 12px; outline: none; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; color: #39465b; }
+    #jsonInput:focus { border-color: #9bb3ff; }
+    .modal-actions { display: flex; gap: 9px; margin-top: 12px; }
+    .primary-btn { flex: 1; min-height: 43px; border: 0; border-radius: 12px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 650; }
+    .secondary-btn { min-height: 43px; padding: 0 14px; border: 1px solid #e2e8f2; border-radius: 12px; color: #657188; background: #fff; font-size: 13px; }
+    .toast { position: fixed; z-index: 30; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translate(-50%, 15px); opacity: 0; pointer-events: none; padding: 10px 15px; border-radius: 999px; color: #fff; background: rgba(28,38,58,.9); font-size: 12px; transition: .2s ease; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (min-width: 600px) {
+      .app { padding-top: 16px; }
+      h1 { font-size: 19px; }
+      .brand-icon { width: 38px; height: 38px; font-size: 19px; }
+      .stat { padding: 9px 12px; }
+      .stat-value { font-size: 19px; }
+      #searchInput { height: 44px; }
+      .chip { padding: 7px 13px; font-size: 12px; }
+      .drug-title { font-size: 14.5px; white-space: normal; }
+      .row { min-height: 46px; }
+      .expand-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1000px) {
+      .app { width: min(100%, 900px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">✚</div>
+        <div>
+          <h1>药品清单</h1>
+          <div class="subtitle">库存信息 · 药品价格 · 批次管理</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="ghost-btn" id="importBtn" type="button">导入 JSON</button>
+        <button class="ghost-btn" id="resetBtn" type="button">恢复示例</button>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="清单概览">
+      <div class="stat"><div class="stat-label">药品记录</div><div class="stat-value" id="totalCount">32<small>条</small></div></div>
+      <div class="stat"><div class="stat-label">库存总数</div><div class="stat-value" id="totalStock">255<small>件</small></div></div>
+      <div class="stat"><div class="stat-label">药品类别</div><div class="stat-value" id="categoryCount">8<small>类</small></div></div>
+    </section>
+
+    <section class="search-panel">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="searchInput" type="search" placeholder="搜索药品名称、厂家、规格、批号…" autocomplete="off" />
+        <button id="clearSearch" type="button" aria-label="清空搜索">×</button>
+      </div>
+      <div class="toolbar">
+        <div class="result-count">当前显示 <strong id="visibleCount">32</strong> 条</div>
+        <button class="ghost-btn" id="toggleAllBtn" type="button">展开全部</button>
+        <select id="sortSelect" aria-label="排序方式">
+          <option value="default">默认排序</option>
+          <option value="priceAsc">价格从低到高</option>
+          <option value="priceDesc">价格从高到低</option>
+          <option value="stockDesc">库存从多到少</option>
+          <option value="nameAsc">药品名称 A-Z</option>
+        </select>
+      </div>
+      <nav class="chips" id="categoryChips" aria-label="药品类别筛选"></nav>
+    </section>
+
+    <section class="list" id="medicineList" aria-live="polite"></section>
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">⌕</div>
+      <div>没有找到匹配的药品</div>
+      <div style="font-size:11px;margin-top:5px">试试其他关键词或切换药品类别</div>
+    </div>
+    <footer class="footnote">数据来自导入的药品 JSON · 仅用于清单展示与库存查看<br>价格、库存及有效期以原始业务系统数据为准</footer>
+  </main>
+
+  <div class="modal-backdrop" id="importModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="modalTitle">导入接口 JSON</div>
+        <button class="close-btn" id="closeModal" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="modal-desc">粘贴接口返回的完整 JSON（支持你提供的 <code>success / data / content</code> 结构），或选择本地 .json 文件。导入只在当前页面生效，不会上传数据。</p>
+      <textarea id="jsonInput" spellcheck="false" placeholder='在这里粘贴接口 JSON，例如：{"success":true,"data":{"content":[...]}}'></textarea>
+      <div class="modal-actions">
+        <button class="secondary-btn" id="chooseFileBtn" type="button">选择 JSON 文件</button>
+        <button class="primary-btn" id="applyJsonBtn" type="button">解析并渲染</button>
+      </div>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden />
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // 示例数据采用接口 data.content 的字段结构；接入真实接口时可直接替换为接口返回值。
+    const demoResponse = {
+      success: true,
+      data: { content: [
+        {fdMain:{fd_col_yptzspmc:"罗红霉素胶囊（赛乐林）",fd_col_yptzsccj:"联邦制药",fd_col_yptzgg:"150mg",fd_col_yptzypmc:"罗红霉素胶囊",fd_col_yptzyplb:"抗生素类",fd_col_yptzyptm:"8917682019",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:40.15,fd_col_yptzmxkcsl:35,fd_col_yptzmxypbh:"20241220",fd_col_yptzmxyxqz:1795104000000,fd_col_scrq:1734624000000},
+        {fdMain:{fd_col_yptzspmc:"苯磺酸氨氯地平片（络活喜）",fd_col_yptzsccj:"晖致制药",fd_col_yptzgg:"5毫克*7片",fd_col_yptzypmc:"苯磺酸氨氯地平片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"6156928781",fd_col_yptzdw:[{fdName:"片"}]},fd_col_price:38,fd_col_yptzmxkcsl:20,fd_col_yptzmxypbh:"2026111604099",fd_col_yptzmxyxqz:1932652800000,fd_col_scrq:1775836800000},
+        {fdMain:{fd_col_yptzspmc:"蒲地蓝消炎口服液",fd_col_yptzsccj:"济川药业集团股份有限公司",fd_col_yptzgg:"每只装10ml",fd_col_yptzypmc:"蒲地蓝消炎口服液",fd_col_yptzyplb:"呼吸道疾病",fd_col_yptzyptm:"3999700707",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:62,fd_col_yptzmxkcsl:19,fd_col_yptzmxypbh:"2026111603997",fd_col_yptzmxyxqz:1829404800000,fd_col_scrq:1769097600000},
+        {fdMain:{fd_col_yptzspmc:"同仁堂",fd_col_yptzsccj:"北京同仁堂股份有限公司同仁堂制药厂",fd_col_yptzgg:"6g",fd_col_yptzypmc:"牛黄清胃丸",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"0223DEB7B7BB484E8FA422F05175288C",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:15.65,fd_col_yptzmxkcsl:17,fd_col_yptzmxypbh:"20240822",fd_col_yptzmxyxqz:1879344000000,fd_col_scrq:1724256000000},
+        {fdMain:{fd_col_yptzspmc:"苏黄止咳胶囊",fd_col_yptzsccj:"扬子江药业集团",fd_col_yptzgg:"0.45毫克*9粒",fd_col_yptzypmc:"苏黄止咳胶囊",fd_col_yptzyplb:"中药饮片",fd_col_yptzyptm:"10001200012",fd_col_yptzdw:[{fdName:"粒"}]},fd_col_price:36,fd_col_yptzmxkcsl:15,fd_col_yptzmxypbh:"2026111604094",fd_col_yptzmxyxqz:1843747200000,fd_col_scrq:1783267200000},
+        {fdMain:{fd_col_yptzspmc:"替硝唑片（东方明）",fd_col_yptzsccj:"山东方明药业集团股份有限公司",fd_col_yptzgg:"0.5g*8片/板*1板",fd_col_yptzypmc:"替硝唑片",fd_col_yptzyplb:"抗生素类",fd_col_yptzyptm:"4586286133",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:10.36,fd_col_yptzmxkcsl:15,fd_col_yptzmxypbh:"20241224",fd_col_yptzmxyxqz:1797955200000,fd_col_scrq:1734969600000},
+        {fdMain:{fd_col_yptzspmc:"速福达",fd_col_yptzsccj:"ShionogipharmaCo",fd_col_yptzgg:"20毫克*2片",fd_col_yptzypmc:"玛巴洛沙韦片",fd_col_yptzyplb:"呼吸道疾病",fd_col_yptzyptm:"2461283990",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:238,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604135",fd_col_yptzmxyxqz:1869753600000,fd_col_scrq:1743609600000},
+        {fdMain:{fd_col_yptzspmc:"达菲",fd_col_yptzsccj:"上海罗氏制药有限公司",fd_col_yptzgg:"75毫克*10粒",fd_col_yptzypmc:"磷酸奥司他韦胶囊",fd_col_yptzyplb:"呼吸道疾病",fd_col_yptzyptm:"1214923644",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:208,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604136",fd_col_yptzmxyxqz:2055772800000,fd_col_scrq:1740326400000},
+        {fdMain:{fd_col_yptzspmc:"可定",fd_col_yptzsccj:"阿斯利康药业（中国）有限公司",fd_col_yptzgg:"10mg*7片",fd_col_yptzypmc:"瑞舒伐他汀钙片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"1783012700",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:52,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604075",fd_col_yptzmxyxqz:1864483200000,fd_col_scrq:1771171200000},
+        {fdMain:{fd_col_yptzspmc:"甲钴胺片（弥可保）",fd_col_yptzsccj:"卫材（中国）药业有限公司",fd_col_yptzgg:"10片/板*2板/盒",fd_col_yptzypmc:"甲钴胺片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"69F31CC9227B4D3D98EE4F23C71E1CDD",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:36.5,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604137",fd_col_yptzmxyxqz:1872172800000,fd_col_scrq:1778774400000},
+        {fdMain:{fd_col_yptzspmc:"达力新",fd_col_yptzsccj:"国药集团致君制药有限公司",fd_col_yptzgg:"0.25g*12片",fd_col_yptzypmc:"头孢呋辛酯片",fd_col_yptzyplb:"抗生素类",fd_col_yptzyptm:"2797619047",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:35,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604105",fd_col_yptzmxyxqz:1877443200000,fd_col_scrq:1784736000000},
+        {fdMain:{fd_col_yptzspmc:"拜新同",fd_col_yptzsccj:"拜耳医药保健有限公司",fd_col_yptzgg:"30mg*7片",fd_col_yptzypmc:"硝苯地平控释片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"23360055582E4AD18F26C56DC972395F",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:32,fd_col_yptzmxkcsl:10,fd_col_yptzmxypbh:"2026111604100",fd_col_yptzmxyxqz:1867766400000,fd_col_scrq:1773158400000},
+        {fdMain:{fd_col_yptzspmc:"好医生",fd_col_yptzsccj:"四川好医生攀西药业有限公司",fd_col_yptzgg:"100ml",fd_col_yptzypmc:"康复新液",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"7869812483",fd_col_yptzdw:[{fdName:"瓶"}]},fd_col_price:37,fd_col_yptzmxkcsl:9,fd_col_yptzmxypbh:"2026110603578",fd_col_yptzmxyxqz:1873296000000,fd_col_scrq:1778688000000},
+        {fdMain:{fd_col_yptzspmc:"复方丹参滴丸",fd_col_yptzsccj:"天士力医药集团股份有限公司",fd_col_yptzgg:"180丸",fd_col_yptzypmc:"复方丹参滴丸",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"DRUG182",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:28,fd_col_yptzmxkcsl:8,fd_col_yptzmxypbh:"2026102903496",fd_col_yptzmxyxqz:1891180800000,fd_col_scrq:1770393600000},
+        {fdMain:{fd_col_yptzspmc:"戴芬",fd_col_yptzsccj:"TEMMLER IRELAND LTD",fd_col_yptzgg:"75毫克*10粒",fd_col_yptzypmc:"双氯芬酸纳双释放肠溶胶",fd_col_yptzyplb:"风湿骨科",fd_col_yptzyptm:"6424496757",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:23.8,fd_col_yptzmxkcsl:8,fd_col_yptzmxypbh:"20221121",fd_col_yptzmxyxqz:1795104000000,fd_col_scrq:1668960000000},
+        {fdMain:{fd_col_yptzspmc:"安达唐",fd_col_yptzsccj:"阿斯利康药业（中国）有限公司",fd_col_yptzgg:"10mg",fd_col_yptzypmc:"达格列净片",fd_col_yptzyplb:"内分泌",fd_col_yptzyptm:"1000600003",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:65,fd_col_yptzmxkcsl:5,fd_col_yptzmxypbh:"2026111604107",fd_col_yptzmxyxqz:1866902400000,fd_col_scrq:1772640000000},
+        {fdMain:{fd_col_yptzspmc:"丹参酮胶囊",fd_col_yptzsccj:"河北兴隆希力",fd_col_yptzgg:"0.25克*36片",fd_col_yptzypmc:"丹参酮胶囊",fd_col_yptzyplb:"抗生素类",fd_col_yptzyptm:"9900978799",fd_col_yptzdw:[{fdName:"瓶"}]},fd_col_price:38.02,fd_col_yptzmxkcsl:5,fd_col_yptzmxypbh:"20240506",fd_col_yptzmxyxqz:1809446400000,fd_col_scrq:1714924800000},
+        {fdMain:{fd_col_yptzspmc:"L-谷氨酰胺呱仑酸钠颗粒（麦滋林）",fd_col_yptzsccj:"寿制药株式会社",fd_col_yptzgg:"10克*15片",fd_col_yptzypmc:"L-谷氨酰胺呱仑酸钠颗粒",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"8733255564",fd_col_yptzdw:[{fdName:"片"}]},fd_col_price:35.5,fd_col_yptzmxkcsl:5,fd_col_yptzmxypbh:"20251001",fd_col_yptzmxyxqz:1830268800000,fd_col_scrq:1759248000000},
+        {fdMain:{fd_col_yptzspmc:"联邦阿莫仙",fd_col_yptzsccj:"珠海联邦制药",fd_col_yptzgg:"24粒",fd_col_yptzypmc:"阿莫西林胶囊",fd_col_yptzyplb:"抗生素类",fd_col_yptzyptm:"9921443312",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:22.5,fd_col_yptzmxkcsl:5,fd_col_yptzmxypbh:"2026102903494",fd_col_yptzmxyxqz:1870704000000,fd_col_scrq:1778688000000},
+        {fdMain:{fd_col_yptzspmc:"施维舒",fd_col_yptzsccj:"卫材（中国）药业有限公司",fd_col_yptzgg:"50mg*80片",fd_col_yptzypmc:"替普瑞酮胶囊",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"4841178788",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:112,fd_col_yptzmxkcsl:4,fd_col_yptzmxypbh:"2026111604103",fd_col_yptzmxyxqz:1871827200000,fd_col_scrq:1779811200000},
+        {fdMain:{fd_col_yptzspmc:"L-谷氨酰胺呱仑酸钠颗粒（麦滋林）",fd_col_yptzsccj:"寿制药株式会社",fd_col_yptzgg:"10克*15片",fd_col_yptzypmc:"L-谷氨酰胺呱仑酸钠颗粒",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"8733255564",fd_col_yptzdw:[{fdName:"片"}]},fd_col_price:35.5,fd_col_yptzmxkcsl:4,fd_col_yptzmxypbh:"20250912",fd_col_yptzmxyxqz:1849536000000,fd_col_scrq:1757606400000},
+        {fdMain:{fd_col_yptzspmc:"格华止",fd_col_yptzsccj:"中美上海施贵宝制药有限公司",fd_col_yptzgg:"0.5g*20片",fd_col_yptzypmc:"盐酸二甲双胍片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"31C6DB9A2ECE4429A23F71740B1E5308",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:31,fd_col_yptzmxkcsl:4,fd_col_yptzmxypbh:"2026102903495",fd_col_yptzmxyxqz:1865347200000,fd_col_scrq:1770739200000},
+        {fdMain:{fd_col_yptzspmc:"诺氟沙星胶囊",fd_col_yptzsccj:"山东鲁抗医药集团赛特有限责任公司",fd_col_yptzgg:"0.1g/10粒/2板",fd_col_yptzypmc:"诺氟沙星胶囊",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"D22157B4083242C79619C94DBF7BC9E3",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:18,fd_col_yptzmxkcsl:4,fd_col_yptzmxypbh:"2026102903513",fd_col_yptzmxyxqz:1827936000000,fd_col_scrq:1764950400000},
+        {fdMain:{fd_col_yptzspmc:"非布司他片（菲布力）",fd_col_yptzsccj:"万邦医药",fd_col_yptzgg:"20mg*14片",fd_col_yptzypmc:"非布司他片（菲布力）",fd_col_yptzyplb:"内分泌",fd_col_yptzyptm:"1000600001",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:110,fd_col_yptzmxkcsl:3,fd_col_yptzmxypbh:"2026110603665",fd_col_yptzmxyxqz:1877184000000,fd_col_scrq:1782576000000},
+        {fdMain:{fd_col_yptzspmc:"安宫牛黄丸",fd_col_yptzsccj:"北京同仁堂股份有限公司同仁堂制药厂",fd_col_yptzgg:"3g*1丸",fd_col_yptzypmc:"安宫牛黄丸",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"06AA306141E2403BAC48E563C687F0A9",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:850,fd_col_yptzmxkcsl:2,fd_col_yptzmxypbh:"2026111604049",fd_col_yptzmxyxqz:1924876800000,fd_col_scrq:1768838400000},
+        {fdMain:{fd_col_yptzspmc:"帕坦洛",fd_col_yptzsccj:"比利时",fd_col_yptzgg:"5ml",fd_col_yptzypmc:"盐酸奥洛他定滴眼液",fd_col_yptzyplb:"五官科疾病",fd_col_yptzyptm:"2167006167",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:97,fd_col_yptzmxkcsl:2,fd_col_yptzmxypbh:"2026111604064",fd_col_yptzmxyxqz:1861804800000,fd_col_scrq:1768924800000},
+        {fdMain:{fd_col_yptzspmc:"敏使朗",fd_col_yptzsccj:"卫材药业有限公司制造",fd_col_yptzgg:"6mg*10片",fd_col_yptzypmc:"甲磺酸倍他司汀片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"1A9AC093BECE43CDBD2E9F6D551075B1",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:54.4,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"20240412",fd_col_yptzmxyxqz:1804780800000,fd_col_scrq:1712851200000},
+        {fdMain:{fd_col_yptzspmc:"苯磺酸左氨氯地平片",fd_col_yptzsccj:"旋慧达药业集团（吉林）有限公司",fd_col_yptzgg:"2.5毫克;7片/板*2板",fd_col_yptzypmc:"苯磺酸左氨氯地平片",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"AD61BDCC8E844F37B1FC074E5D337A07",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:47.52,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"20241111",fd_col_yptzmxyxqz:1823097600000,fd_col_scrq:1731254400000},
+        {fdMain:{fd_col_yptzspmc:"民生",fd_col_yptzsccj:"杭州民生药业股份有限公司",fd_col_yptzgg:"5mg",fd_col_yptzypmc:"消旋山莨菪碱片",fd_col_yptzyplb:"消化系统疾病",fd_col_yptzyptm:"5445629337",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:35,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"20241201",fd_col_yptzmxyxqz:1795968000000,fd_col_scrq:1732982400000},
+        {fdMain:{fd_col_yptzspmc:"乐松",fd_col_yptzsccj:"第一三共制药（上海）有限公司",fd_col_yptzgg:"60mg*20片",fd_col_yptzypmc:"洛索洛芬钠片",fd_col_yptzyplb:"风湿骨科",fd_col_yptzyptm:"3431194081",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:31.8,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"2026092103224",fd_col_yptzmxyxqz:1869580800000,fd_col_scrq:1777305600000},
+        {fdMain:{fd_col_yptzspmc:"乐松",fd_col_yptzsccj:"第一三共制药（上海）有限公司",fd_col_yptzgg:"60mg*20片",fd_col_yptzypmc:"洛索洛芬钠片",fd_col_yptzyplb:"风湿骨科",fd_col_yptzyptm:"3431194081",fd_col_yptzdw:[{fdName:"盒"}]},fd_col_price:31.8,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"2026082403141",fd_col_yptzmxyxqz:1860163200000,fd_col_scrq:1768233600000},
+        {fdMain:{fd_col_yptzspmc:"苯磺酸左氨氯地平片（施慧达）",fd_col_yptzsccj:"施慧达药业集团",fd_col_yptzgg:"2.5毫克*7片*2板",fd_col_yptzypmc:"苯磺酸左氨氯地平片（施慧达）",fd_col_yptzyplb:"心脑血管",fd_col_yptzyptm:"BHSZALDPPSHD",fd_col_yptzdw:[{fdName:"片"}]},fd_col_price:29,fd_col_yptzmxkcsl:1,fd_col_yptzmxypbh:"2026110603650",fd_col_yptzmxyxqz:1874851200000,fd_col_scrq:1782489600000}
+      ]}
+    };
+
+    let currentItems = [];
+    let activeCategory = '全部';
+    let searchKeyword = '';
+    let sortMode = 'default';
+    const openIds = new Set();
+
+    const $ = (id) => document.getElementById(id);
+    const text = (value) => value == null ? '' : String(value);
+    const escapeHtml = (value) => text(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const formatPrice = (value) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') : '—';
+    };
+    const formatDate = (value) => {
+      if (value === null || value === undefined || value === '') return '—';
+      const date = new Date(Number(value));
+      if (!Number.isFinite(date.getTime())) return '—';
+      return new Intl.DateTimeFormat('zh-CN', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit'}).format(date).replaceAll('/', '-');
+    };
+    function unwrapResponse(response) {
+      if (Array.isArray(response)) return response;
+      if (Array.isArray(response?.data?.content)) return response.data.content;
+      if (Array.isArray(response?.content)) return response.content;
+      if (Array.isArray(response?.data)) return response.data;
+      throw new Error('没有找到药品数组。请确认 JSON 中包含 data.content 数组。');
+    }
+    function normalizeItem(item, index) {
+      const main = item?.fdMain || item || {};
+      const first = (key) => item?.[key] ?? main?.[key] ?? item?.[`mk_model_2024yptz_d.${key}`];
+      const unit = Array.isArray(main.fd_col_yptzdw) ? main.fd_col_yptzdw.map(x => x?.fdName).filter(Boolean).join(' / ') : '';
+      return {
+        id: text(item?.fd_id || main.fd_id || index),
+        productName: text(first('fd_col_yptzspmc') || first('fd_col_yptzypmc') || '未命名药品'),
+        genericName: text(first('fd_col_yptzypmc') || first('fd_col_yptzspmc')),
+        manufacturer: text(first('fd_col_yptzsccj') || '—'),
+        spec: text(first('fd_col_yptzgg') || '—'),
+        category: text(first('fd_col_yptzyplb') || '未分类'),
+        barcode: text(first('fd_col_yptzyptm') || '—'),
+        unit: unit || '—',
+        price: Number(first('fd_col_price')),
+        stock: Number(first('fd_col_yptzmxkcsl')),
+        batch: text(first('fd_col_yptzmxypbh') || '—'),
+        expiry: formatDate(first('fd_col_yptzmxyxqz')),
+        production: formatDate(first('fd_col_scrq'))
+      };
+    }
+    function setResponse(response, showMessage = true) {
+      const rows = unwrapResponse(response);
+      currentItems = rows.map(normalizeItem);
+      activeCategory = '全部';
+      searchKeyword = '';
+      openIds.clear();
+      $('searchInput').value = '';
+      $('clearSearch').style.display = 'none';
+      render();
+      if (showMessage) toast(`已载入 ${currentItems.length} 条药品记录`);
+    }
+    function renderSummary() {
+      const stockTotal = currentItems.reduce((sum, item) => sum + (Number.isFinite(item.stock) ? item.stock : 0), 0);
+      const categories = new Set(currentItems.map(item => item.category).filter(Boolean));
+      $('totalCount').innerHTML = `${currentItems.length}<small>条</small>`;
+      $('totalStock').innerHTML = `${stockTotal}<small>件</small>`;
+      $('categoryCount').innerHTML = `${categories.size}<small>类</small>`;
+    }
+    function renderChips() {
+      const categories = ['全部', ...new Set(currentItems.map(item => item.category).filter(Boolean))];
+      $('categoryChips').innerHTML = categories.map(category =>
+        `<button type="button" class="chip ${category === activeCategory ? 'active' : ''}" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+      ).join('');
+    }
+    function matches(item) {
+      const categoryMatch = activeCategory === '全部' || item.category === activeCategory;
+      const haystack = [item.productName,item.genericName,item.manufacturer,item.spec,item.category,item.batch,item.barcode].join(' ').toLocaleLowerCase();
+      return categoryMatch && haystack.includes(searchKeyword.toLocaleLowerCase());
+    }
+    function cardTemplate(item) {
+      const opened = openIds.has(item.id);
+      const detail = detailTemplate(item);
+      return `<article class="medicine-card${opened ? ' open' : ''}" data-id="${escapeHtml(item.id)}">
+        <button class="row" type="button" aria-expanded="${opened}">
+          <span class="drug-title">${escapeHtml(item.genericName || item.productName)}</span>
+          <span class="price"><span>¥</span>${escapeHtml(formatPrice(item.price))}</span>
+          <span class="chevron" aria-hidden="true">›</span>
+        </button>
+        <div class="expand">${detail}</div>
+      </article>`;
+    }
+    function detailTemplate(item) {
+      const hasStock = Number.isFinite(item.stock);
+      const fields = [
+        ['生产厂家', item.manufacturer, 'strong full'],
+        ['商品名', item.productName && item.productName !== item.genericName ? item.productName : '', 'full'],
+        ['规格', item.spec],
+        ['类别', item.category],
+        ['单位', item.unit],
+        ['库存数量', hasStock ? `${item.stock} ${item.unit}` : '—', hasStock && item.stock <= 2 ? 'low' : 'stock'],
+        ['药品批号', item.batch],
+        ['生产日期', item.production],
+        ['有效期至', item.expiry, expiryClass(item.expiry)],
+        ['药品条码', item.barcode, 'full']
+      ];
+      return `<div class="expand-grid">${fields
+        .filter(([, value]) => value !== '' && value != null)
+        .map(([label, value, cls = '']) =>
+          `<div class="detail ${cls.includes('full') ? 'full' : ''}"><div class="detail-label">${escapeHtml(label)}</div><div class="detail-value ${cls.replace(' full', '')}">${escapeHtml(value)}</div></div>`
+        ).join('')}</div>`;
+    }
+    function expiryClass(expiry) {
+      if (!/\d{4}-\d{2}-\d{2}/.test(expiry)) return '';
+      const days = (new Date(expiry.replace(/-/g, '/')).getTime() - Date.now()) / 86400000;
+      if (days < 0) return 'danger';
+      return days < 180 ? 'warn' : '';
+    }
+    function render() {
+      renderSummary();
+      renderChips();
+      let items = currentItems.filter(matches);
+      if (sortMode === 'priceAsc') items.sort((a,b) => (a.price || 0) - (b.price || 0));
+      if (sortMode === 'priceDesc') items.sort((a,b) => (b.price || 0) - (a.price || 0));
+      if (sortMode === 'stockDesc') items.sort((a,b) => (b.stock || 0) - (a.stock || 0));
+      if (sortMode === 'nameAsc') items.sort((a,b) => a.genericName.localeCompare(b.genericName, 'zh-CN'));
+      $('medicineList').innerHTML = items.map(cardTemplate).join('');
+      $('visibleCount').textContent = items.length;
+      $('emptyState').style.display = items.length ? 'none' : 'block';
+      updateToggleAll(items);
+    }
+    function updateToggleAll(items) {
+      const button = $('toggleAllBtn');
+      if (!items.length) { button.hidden = true; return; }
+      button.hidden = false;
+      const allOpen = items.every(item => openIds.has(item.id));
+      button.textContent = allOpen ? '收起全部' : '展开全部';
+    }
+    function toast(message) {
+      const node = $('toast'); node.textContent = message; node.classList.add('show');
+      clearTimeout(toast.timer); toast.timer = setTimeout(() => node.classList.remove('show'), 2200);
+    }
+
+    $('medicineList').addEventListener('click', event => {
+      const row = event.target.closest('.row');
+      if (!row) return;
+      const card = row.closest('.medicine-card');
+      const id = card.dataset.id;
+      const opened = card.classList.toggle('open');
+      row.setAttribute('aria-expanded', String(opened));
+      opened ? openIds.add(id) : openIds.delete(id);
+      updateToggleAll(currentItems.filter(matches));
+    });
+    $('toggleAllBtn').addEventListener('click', () => {
+      const items = currentItems.filter(matches);
+      const allOpen = items.every(item => openIds.has(item.id));
+      items.forEach(item => allOpen ? openIds.delete(item.id) : openIds.add(item.id));
+      render();
+    });
+    $('searchInput').addEventListener('input', event => {
+      searchKeyword = event.target.value.trim();
+      $('clearSearch').style.display = searchKeyword ? 'block' : 'none';
+      render();
+    });
+    $('clearSearch').addEventListener('click', () => {
+      $('searchInput').value = ''; searchKeyword = ''; $('clearSearch').style.display = 'none'; render(); $('searchInput').focus();
+    });
+    $('categoryChips').addEventListener('click', event => {
+      const button = event.target.closest('[data-category]');
+      if (!button) return;
+      activeCategory = button.dataset.category; render();
+    });
+    $('sortSelect').addEventListener('change', event => { sortMode = event.target.value; render(); });
+    $('importBtn').addEventListener('click', () => $('importModal').classList.add('show'));
+    $('closeModal').addEventListener('click', () => $('importModal').classList.remove('show'));
+    $('importModal').addEventListener('click', event => { if (event.target === $('importModal')) $('importModal').classList.remove('show'); });
+    $('chooseFileBtn').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async event => {
+      const file = event.target.files?.[0]; if (!file) return;
+      try { $('jsonInput').value = await file.text(); toast(`已读取 ${file.name}`); }
+      catch { toast('文件读取失败'); }
+      event.target.value = '';
+    });
+    $('applyJsonBtn').addEventListener('click', () => {
+      try {
+        const parsed = JSON.parse($('jsonInput').value.trim());
+        setResponse(parsed);
+        $('importModal').classList.remove('show');
+      } catch (error) { toast(error instanceof SyntaxError ? 'JSON 格式不正确，请检查后重试' : error.message || '解析失败'); }
+    });
+    $('resetBtn').addEventListener('click', () => {
+      sortMode = 'default'; $('sortSelect').value = 'default'; $('jsonInput').value = '';
+      setResponse(demoResponse);
+    });
+
+    setResponse(demoResponse, false);
+  </script>
+</body>
+</html>
