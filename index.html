@@ -165,8 +165,7 @@
         <div class="result-count">当前显示 <strong id="visibleCount">32</strong> 条</div>
         <button class="ghost-btn" id="toggleAllBtn" type="button">展开全部</button>
         <select id="sortSelect" aria-label="排序方式">
-          <option value="default">默认排序</option>
-          <option value="priceAsc">价格从低到高</option>
+          <option value="priceAsc" selected>价格从低到高</option>
           <option value="priceDesc">价格从高到低</option>
           <option value="stockDesc">库存从多到少</option>
           <option value="nameAsc">药品名称 A-Z</option>
@@ -244,7 +243,7 @@
     let currentItems = [];
     let activeCategory = '全部';
     let searchKeyword = '';
-    let sortMode = 'default';
+    let sortMode = 'priceAsc';
     const openIds = new Set();
 
     const $ = (id) => document.getElementById(id);
@@ -427,7 +426,7 @@
       } catch (error) { toast(error instanceof SyntaxError ? 'JSON 格式不正确，请检查后重试' : error.message || '解析失败'); }
     });
     $('resetBtn').addEventListener('click', () => {
-      sortMode = 'default'; $('sortSelect').value = 'default'; $('jsonInput').value = '';
+      sortMode = 'priceAsc'; $('sortSelect').value = 'priceAsc'; $('jsonInput').value = '';
       setResponse(demoResponse);
     });
 
